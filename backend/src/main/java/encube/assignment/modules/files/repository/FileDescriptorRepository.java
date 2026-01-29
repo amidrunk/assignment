@@ -42,6 +42,13 @@ public class FileDescriptorRepository {
             WHERE id = $1
             """;
 
+    @Language("sql")
+    private final String SQL_FIND_ALL = """
+            SELECT file_descriptor.*
+            FROM file_descriptor
+            ORDER BY id ASC
+            """;
+
     private final DatabaseClient db;
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -124,6 +131,11 @@ public class FileDescriptorRepository {
                     .flatMap(result -> Mono.from(result.map((row) -> rowToFileDescriptor(row)
                     )));
         });
+    }
+
+    public Flux<FileDescriptor> findAll() {
+        return db.inConnectionMany(connection -> Flux.from(connection.createStatement(SQL_FIND_ALL).execute())
+                .flatMap(result -> result.map(FileDescriptorRepository::rowToFileDescriptor)));
     }
 
     private static FileDescriptor rowToFileDescriptor(io.r2dbc.spi.Readable row) {

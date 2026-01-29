@@ -3,6 +3,7 @@ package encube.assignment.files.api;
 import encube.assignment.IntegrationTest;
 import encube.assignment.modules.files.api.protocol.CreateFileRequest;
 import encube.assignment.modules.files.domain.FileDescriptor;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
@@ -15,7 +16,6 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,21 +26,64 @@ class FileApiTest {
     private WebTestClient webTestClient;
 
     @Test
+    void files_should_be_empty_if_no_files_have_been_created() {
+        authenticatedClient().get()
+                .uri("/files")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(FileDescriptor.class)
+                .hasSize(0);
+    }
+
+    @Test
     void file_can_be_uploaded_with_file_descriptor() {
-        var fileDescriptor = CreateFileRequest.builder()
-                .fileDescriptor(FileDescriptor.Payload.builder()
-                        .contentType("text/plain")
-                        .fileName("test.txt")
-                        .build())
+        var fileDescriptor = FileDescriptor.Payload.builder()
+                .contentType("text/plain")
+                .fileName("test.txt")
+                .build();
+
+        uploadFileThen(fileDescriptor, "Hello, World!").expectStatus().isCreated()
+                .expectBody(FileDescriptor.class)
+                .value(actualFileDescriptor -> {
+                    assertThat(actualFileDescriptor.id()).isNotNull();
+                    assertThat(actualFileDescriptor.state()).isEqualTo(FileDescriptor.State.UPLOADED);
+                    assertThat(actualFileDescriptor.payload().fileName()).isEqualTo("test.txt");
+                    assertThat(actualFileDescriptor.payload().contentType()).isEqualTo("text/plain");
+                });
+
+        authenticatedClient().get()
+                .uri("/files")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(FileDescriptor.class)
+                .hasSize(1)
+                .value(fileDescriptors -> {
+                    FileDescriptor fd = fileDescriptors.get(0);
+                    assertThat(fd.payload().fileName()).isEqualTo("test.txt");
+                    assertThat(fd.payload().contentType()).isEqualTo("text/plain");
+                });
+    }
+
+    private WebTestClient authenticatedClient() {
+        var sessionCookie = login();
+
+        return webTestClient.mutate()
+                .defaultCookie(sessionCookie.getName(), sessionCookie.getValue())
+                .build();
+    }
+
+    private WebTestClient.@NonNull ResponseSpec uploadFileThen(FileDescriptor.Payload fileDescriptor, String content) {
+        var createFileRequest = CreateFileRequest.builder()
+                .fileDescriptor(fileDescriptor)
                 .build();
 
         // JSON part: ensure application/json
         var descriptorHeaders = new HttpHeaders();
         descriptorHeaders.setContentType(MediaType.APPLICATION_JSON);
-        var descriptorPart = new HttpEntity<>(fileDescriptor, descriptorHeaders);
+        var descriptorPart = new HttpEntity<>(createFileRequest, descriptorHeaders);
 
         // File part: Resource with filename + content-type
-        byte[] bytes = "Hello, World!".getBytes(StandardCharsets.UTF_8);
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
         var fileResource = new ByteArrayResource(bytes) {
             @Override
             public String getFilename() {
@@ -56,19 +99,28 @@ class FileApiTest {
         multipartData.add("descriptor", descriptorPart);
         multipartData.add("file", filePart);
 
-        webTestClient.post()
+        WebTestClient client = authenticatedClient();
+
+        WebTestClient.ResponseSpec responseSpec = client.post()
                 .uri("/files")
-                .header("Authorization", "Basic " + Base64.getEncoder().encodeToString("admin:changeme".getBytes(StandardCharsets.UTF_8)))
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(BodyInserters.fromMultipartData(multipartData))
+                .exchange();
+        return responseSpec;
+    }
+
+    private org.springframework.http.ResponseCookie login() {
+        var result = webTestClient.post()
+                .uri("/login")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData("username", "admin")
+                        .with("password", "changeme"))
                 .exchange()
-                .expectStatus().isCreated()
-                .expectBody(FileDescriptor.class)
-                .value(actualFileDescriptor -> {
-                    assertThat(actualFileDescriptor.id()).isNotNull();
-                    assertThat(actualFileDescriptor.state()).isEqualTo(FileDescriptor.State.UPLOADED);
-                    assertThat(actualFileDescriptor.payload().fileName()).isEqualTo("test.txt");
-                    assertThat(actualFileDescriptor.payload().contentType()).isEqualTo("text/plain");
-                });
+                .expectStatus().is3xxRedirection()
+                .returnResult(Void.class);
+
+        var session = result.getResponseCookies().getFirst("SESSION");
+        assertThat(session).as("session cookie from login").isNotNull();
+        return session;
     }
 }

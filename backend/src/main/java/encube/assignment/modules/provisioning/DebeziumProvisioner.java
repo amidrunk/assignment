@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,7 @@ import java.util.Map;
 @Component
 @Profile("provision")
 @Slf4j
+@ConditionalOnProperty(value = "debezium.provision.enabled", havingValue = "true", matchIfMissing = true)
 public class DebeziumProvisioner implements ApplicationRunner {
 
     private final WebClient webClient;

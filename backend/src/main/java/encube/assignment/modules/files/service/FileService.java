@@ -50,4 +50,9 @@ public class FileService {
 
         return finalize;
     }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public Flux<FileDescriptor> listFiles() {
+        return fileDescriptorRepository.findAll();
+    }
 }
