@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+        http://www.liquibase.org/xml/ns/dbchangelog-ext
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+
+    <changeSet id="encube-schema-1" author="encube">
+        <createTable tableName="event_outbox">
+            <column name="id" type="uuid">
+                <constraints primaryKey="true" />
+            </column>
+            <column name="aggregatetype" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="aggregateid" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="type" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="protobuf_type_name" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="payload" type="bytea">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+        <sql>
+            create type file_state as enum ('PENDING', 'UPLOADED', 'FAILED', 'DELETED');
+        </sql>
+        <createTable tableName="file_descriptor">
+            <column name="id" type="serial">
+                <constraints primaryKey="true" />
+            </column>
+            <column name="file_name" type="varchar">
+                <constraints nullable="false" />
+            </column>
+            <column name="content_type" type="varchar">
+                <constraints nullable="false" />
+            </column>
+            <column name="state" type="file_state">
+                <constraints nullable="false" />
+            </column>
+            <column name="version" type="integer">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>

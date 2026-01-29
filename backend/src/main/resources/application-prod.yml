@@ -1,0 +1,23 @@
+server:
+  port: 8080
+
+database:
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+  ssl: ${DB_SSL:false}
+  username: ${DB_USER}
+  password: ${DB_PASSWORD}
+  name: ${DB_NAME}
+
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+
+debezium:
+  host: ${DEBEZIUM_HOST}
+  port: ${DEBEZIUM_PORT}
+
+file:
+  storage:
+    type: local
+    local:
+      path: ${FILE_STORAGE_PATH}

@@ -1,0 +1,59 @@
+services:
+  backend:
+    build: ./
+    depends_on:
+      - db
+      - kafka
+      - connect
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: encube_db
+      DB_USER: encube_dbuser
+      DB_PASSWORD: changeme
+      DB_SSL: false
+      SPRING_PROFILES_ACTIVE: prod
+      DEBEZIUM_HOST: connect
+      DEBEZIUM_PORT: 8083
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      FILE_STORAGE_PATH: /data/files
+    volumes:
+      - ./data/files/:/data/files
+  db:
+    image: "postgres:latest"
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: encube_dbuser
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: encube_db
+    command: >
+      bash -c "exec docker-entrypoint.sh postgres -c wal_level=logical -c max_wal_senders=10 -c max_replication_slots=10 -c wal_sender_timeout=0"
+    volumes:
+      - ./.data/:/var/lib/postgresql/data/
+  kafka:
+    image: quay.io/debezium/kafka:3.4.1.Final
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      - CLUSTER_ID=oh-sxaDRTcyAr6pFRbXyzA
+      - NODE_ID=1
+      - NODE_ROLE=combined
+      - KAFKA_LISTENERS=PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+  connect:
+    image: quay.io/debezium/connect:3.4.1.Final
+    ports:
+      - "8083:8083"
+    depends_on:
+      - kafka
+      - db
+    environment:
+      - BOOTSTRAP_SERVERS=kafka:9092
+      - GROUP_ID=1
+      - CONFIG_STORAGE_TOPIC=encube_connect_configs
+      - OFFSET_STORAGE_TOPIC=encube_connect_offsets
+      - STATUS_STORAGE_TOPIC=encube_connect_statuses

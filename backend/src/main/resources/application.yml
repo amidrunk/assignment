@@ -1,0 +1,13 @@
+spring:
+  webflux:
+    base-path: /encube-assignment-api/v1
+  security:
+    user:
+      name: admin
+      password: changeme
+      roles: ADMIN,USER
+  r2dbc:
+    name: ${database.name}
+    username: ${database.username}
+    password: ${database.password}
+    url: r2dbc:postgresql://${database.host}:${database.port}/${database.name}?ssl=${database.ssl}

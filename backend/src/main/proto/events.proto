@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+
+package encube.assignment.events;
+
+import "google/protobuf/timestamp.proto";
+
+message Subject {
+  string type = 1;
+  string id = 2;
+}
+
+message Header {
+  string eventId = 1;
+  Subject subject = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+enum ChangeType {
+  CHANGE_TYPE_UNDEFINED = 0;
+  CHANGE_TYPE_CREATED = 1;
+  CHANGE_TYPE_UPDATED = 2;
+  CHANGE_TYPE_DELETED = 3;
+}
+
+enum FileState {
+  FILE_STATE_UNDEFINED = 0;
+  FILE_STATE_PENDING = 1;
+  FILE_STATE_UPLOADED = 2;
+  FILE_STATE_FAILED = 3;
+  FILE_STATE_DELETED = 4;
+}
+
+message FileDescriptor {
+  int64 id = 1;
+  string name = 2;
+  string contentType = 3;
+  FileState state = 4;
+}
+
+message FileDescriptorChangedEvent {
+  Header header = 1;
+  ChangeType changeType = 2;
+  oneof value {
+    FileDescriptor oldValue = 3;
+    FileDescriptor newValue = 4;
+  }
+}
