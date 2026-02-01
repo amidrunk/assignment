@@ -17,6 +17,7 @@ message FileDescriptor {
   string name = 2;
   string contentType = 3;
   FileState state = 4;
+  map<string, string> attributes = 5;
 }
 
 message WebSocketConnection {

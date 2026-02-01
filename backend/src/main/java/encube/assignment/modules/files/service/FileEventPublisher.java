@@ -86,6 +86,7 @@ public class FileEventPublisher {
                 })
                 .setName(fd.payload().fileName())
                 .setContentType(fd.payload().contentType())
+                .putAllAttributes(fd.payload().attributes())
                 .build();
     }
 

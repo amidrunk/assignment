@@ -1,7 +1,10 @@
 package encube.assignment.modules.files.api;
 
+import encube.assignment.DomainEventReader;
 import encube.assignment.IntegrationTest;
 import encube.assignment.TestHelper;
+import encube.assignment.events.ChangeType;
+import encube.assignment.events.FileDescriptorChangedEvent;
 import encube.assignment.modules.files.api.protocol.CreateFileRequest;
 import encube.assignment.modules.files.domain.FileDescriptor;
 import org.jspecify.annotations.NonNull;
@@ -17,6 +20,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,6 +31,8 @@ class FileApiTest {
     private WebTestClient webTestClient;
     @Autowired
     private TestHelper testHelper;
+    @Autowired
+    private DomainEventReader domainEventReader;
 
     @Test
     void files_should_be_empty_if_no_files_have_been_created() {
@@ -65,6 +71,38 @@ class FileApiTest {
                     assertThat(fd.payload().fileName()).isEqualTo("test.txt");
                     assertThat(fd.payload().contentType()).isEqualTo("text/plain");
                 });
+    }
+
+    @Test
+    void file_can_be_created_with_tags() {
+        var fileDescriptor = FileDescriptor.Payload.builder()
+                .fileName("tagged-file.txt")
+                .contentType("text/plain")
+                .attributes(Map.of("category", "documents", "owner", "user123"))
+                .build();
+
+        uploadFileThen(fileDescriptor, "File with attributes").expectStatus().isCreated()
+                .expectBody(FileDescriptor.class)
+                .value(actualFileDescriptor -> {
+                    assertThat(actualFileDescriptor.id()).isNotNull();
+                    assertThat(actualFileDescriptor.state()).isEqualTo(FileDescriptor.State.UPLOADED);
+                    assertThat(actualFileDescriptor.payload().fileName()).isEqualTo("tagged-file.txt");
+                    assertThat(actualFileDescriptor.payload().contentType()).isEqualTo("text/plain");
+                    assertThat(actualFileDescriptor.payload().attributes()).containsEntry("category", "documents")
+                            .containsEntry("owner", "user123");
+                });
+
+        var domainEvent = domainEventReader.all()
+                .filter(FileDescriptorChangedEvent.class::isInstance)
+                .cast(FileDescriptorChangedEvent.class)
+                .blockFirst();
+
+        assertThat(domainEvent.getChangeType()).isEqualTo(ChangeType.CHANGE_TYPE_CREATED);
+        assertThat(domainEvent.getNewValue().getId()).isNotNull();
+        assertThat(domainEvent.getNewValue().getName()).isEqualTo("tagged-file.txt");
+        assertThat(domainEvent.getNewValue().getContentType()).isEqualTo("text/plain");
+        assertThat(domainEvent.getNewValue().getAttributesMap()).containsEntry("category", "documents")
+                .containsEntry("owner", "user123");
     }
 
     private WebTestClient authenticatedClient() {
@@ -110,6 +148,5 @@ class FileApiTest {
                 .body(BodyInserters.fromMultipartData(multipartData))
                 .exchange();
     }
-
 
 }

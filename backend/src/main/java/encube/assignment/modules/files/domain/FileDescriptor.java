@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import lombok.*;
 import lombok.experimental.Accessors;
 
+import java.util.Map;
+
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
@@ -34,7 +36,7 @@ public class FileDescriptor {
     private Payload payload;
 
     @Builder(toBuilder = true)
-    public record Payload(String fileName, String contentType) {
+    public record Payload(String fileName, String contentType, Map<String, String> attributes) {
 
     }
 }
