@@ -49,9 +49,9 @@ public class EventPublisher {
                         .findFirst()
                         .orElseThrow();
                 var id = header.getEventId();
-                var aggregateType = header.getSubject().getType();
                 var aggregateId = header.getSubject().getId();
                 var type = message.getDescriptorForType().getName();
+                var aggregateType = type;
                 var protobufTypeName = message.getDescriptorForType().getFullName();
                 var payload = message.toByteArray();
 

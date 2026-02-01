@@ -42,7 +42,9 @@ public class NotificationService implements ApplicationRunner {
         )).withKeyDeserializer(new StringDeserializer())
                 .withValueDeserializer(new EventDeserializer())
                 .subscription(List.of(
-                        "encube.FileDescriptorChangedEvent"
+                        "encube.FileDescriptorChangedEvent",
+                        "encube.WebSocketConnectionChangedEvent",
+                        "encube.WebSocketMessageReceivedEvent"
                 )));
 
         kafkaReceiver.receive()

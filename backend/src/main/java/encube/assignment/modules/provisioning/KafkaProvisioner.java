@@ -38,7 +38,13 @@ public class KafkaProvisioner implements ApplicationRunner {
                 AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaBootstrapServers
         ));
 
-        var newTopics = MESSAGE_TYPES.stream().map(messageType -> new NewTopic("encube." + messageType.getSimpleName(), 1, (short) 1)).toList();
+        var existingTopics = adminClient.listTopics().names().get();
+        var missingTopics = MESSAGE_TYPES.stream()
+                .map(messageType -> "encube." + messageType.getSimpleName())
+                .filter(topic -> !existingTopics.contains(topic))
+                .toList();
+
+        var newTopics = missingTopics.stream().map(topic -> new NewTopic(topic, 1, (short) 1)).toList();
 
         adminClient.createTopics(newTopics).all().get();
     }
