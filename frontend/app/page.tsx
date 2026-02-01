@@ -185,9 +185,9 @@ export default function Home() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-sm text-slate-200/90">
-              <Badge label="Auto-saves enabled" tone="emerald" />
-              <Badge label="Live co-editing" tone="sky" />
-              <Badge label="Access controlled" tone="slate" />
+              <Badge label="Real-time notifications" tone="emerald" />
+              <Badge label="File upload" tone="sky" />
+              <Badge label="Not much more..." tone="slate" />
             </div>
           </div>
 
@@ -282,7 +282,7 @@ export default function Home() {
               <Input
                 label="Canvas name"
                 name="canvasName"
-                placeholder="e.g. Cardiology shift handover"
+                placeholder="e.g. My latest product"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 required

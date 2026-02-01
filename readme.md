@@ -6,6 +6,21 @@ relevance to the architecture itself, These trade-offs are documented below.
 It is not intended to implement full-featured application with hardened authentication and authorization or other 
 non-functional features - what exists is only to demonstrate the architecture.
 
+## Running 
+
+```shell
+docker compose up --build
+```
+
+# Functionality
+
+* Login using admin / changeme. There's only one user right now to concentrate on the architecture.
+* You can create canvases and they'll be listed when you login.
+* You can create a new canvas.
+* You can open a canvas and see the file list.
+* You can upload files to the canvas.
+* You will get notifications when files are uploaded to the canvas you have open (the frontend subscribes to the canvas it opens).
+
 # Architecture
 
 The architecture in this project is based on event sourcing. Events are persisted in a message outbox

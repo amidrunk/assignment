@@ -15,6 +15,7 @@ export type CanvasFile = {
   updatedAt?: string;
   kind?: "document" | "model" | "image" | "data" | "other";
   owner?: string;
+  contentType?: string;
 };
 
 type CreateFileDescriptor = {
@@ -34,6 +35,14 @@ const parseJsonSafely = async (response: Response) => {
   } catch {
     return null;
   }
+};
+
+const detectKind = (contentType?: string): CanvasFile["kind"] => {
+  if (!contentType) return "other";
+  if (contentType.startsWith("image/")) return "image";
+  if (contentType.includes("pdf") || contentType.startsWith("text/")) return "document";
+  if (contentType.includes("model")) return "model";
+  return "other";
 };
 
 export const fetchCanvases = async (): Promise<Canvas[]> => {
@@ -87,6 +96,8 @@ export const fetchFiles = async (canvasId: string): Promise<CanvasFile[]> => {
 
   return data.map((item) => ({
     ...item,
+    kind: (item as CanvasFile).kind ?? detectKind((item as { contentType?: string }).contentType),
+    contentType: (item as { contentType?: string }).contentType,
     // Normalize IDs to strings to keep equality checks consistent between WS payloads and API responses.
     id: String((item as { id?: string | number | null })?.id ?? ""),
   }));
