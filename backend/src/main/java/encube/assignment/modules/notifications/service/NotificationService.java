@@ -29,10 +29,21 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
+/**
+ * <p>
+ * The <code>NotificationService</code> sends notifications to users via WebSocket when users upload files to a canvas
+ * they are subscribed to.  It listens to relevant events from Kafka and processes them accordingly.
+ * </p>
+ *
+ * <p>
+ * This is a good example of the functional scalability of this architecture. This service can be scaled independently,
+ * it reacts to events only which are served by the platform and then calls another isolated function to push the message
+ * to the end user. It is a feature added "on top" of generic functions and is not entangled with other business logic.
+ * </p>
+ */
 @Service
 @Slf4j
 public class NotificationService implements ApplicationRunner {

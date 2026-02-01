@@ -91,8 +91,7 @@ public class DebeziumProvisioner implements ApplicationRunner {
                                 }
                             }).then();
                 })
-                .retryWhen(Retry.fixedDelay(30, Duration.ofSeconds(1))
-                        .filter(e -> e instanceof WebClientRequestException)
+                .retryWhen(Retry.fixedDelay(60, Duration.ofSeconds(1))
                         .doBeforeRetry(signal -> {
                             log.info(
                                     "Debezium server not available yet, retrying provisioning... (attempt {})",

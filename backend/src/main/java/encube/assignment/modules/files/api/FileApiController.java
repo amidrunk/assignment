@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+/**
+ * REST API controller for managing file operations such as searching and uploading files.
+ */
 @RestController
 @RequiredArgsConstructor
 public class FileApiController {

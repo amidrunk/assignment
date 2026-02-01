@@ -9,6 +9,11 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+/**
+ * REST API to create a and list canvases. Supports:
+ * - Create Canvas
+ * - List Canvases
+ */
 @Slf4j
 @RestController
 @RequiredArgsConstructor
