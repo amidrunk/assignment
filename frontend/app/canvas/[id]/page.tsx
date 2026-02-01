@@ -94,8 +94,26 @@ export default function CanvasDetail() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const activeSubscriptionRef = useRef<string | null>(null);
   const pendingUnsubscribeRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [dragging, setDragging] = useState(false);
-  const { sendMessage } = useWebSocket();
+  const [toasts, setToasts] = useState<
+    { id: string; title: string; description?: string }[]
+  >([]);
+  const { sendMessage, onMessage } = useWebSocket();
+
+  const showToast = useCallback((title: string, description?: string) => {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    setToasts((prev) => [...prev, { id, title, description }]);
+    const timer = setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 4500);
+    toastTimersRef.current.push(timer);
+  }, []);
+
+  useEffect(() => () => {
+    toastTimersRef.current.forEach(clearTimeout);
+    toastTimersRef.current = [];
+  }, []);
 
   useEffect(() => {
     if (!canvasId) return;
@@ -126,6 +144,57 @@ export default function CanvasDetail() {
       pendingUnsubscribeRef.current = { id: canvasId, timer };
     };
   }, [canvasId, sendMessage]);
+
+  useEffect(() => {
+    if (!canvasId) return undefined;
+
+    const detectKind = (contentType?: string): CanvasFile["kind"] => {
+      if (!contentType) return "other";
+      if (contentType.startsWith("image/")) return "image";
+      if (contentType.includes("pdf") || contentType.startsWith("text/")) return "document";
+      if (contentType.includes("model")) return "model";
+      return "other";
+    };
+
+    const subscription = onMessage((incoming) => {
+      if (!incoming || typeof incoming !== "object") return;
+      const payload = incoming as Record<string, unknown>;
+      if (!("fileId" in payload)) return;
+
+      const fileIdRaw = payload.fileId;
+      const fileName = typeof payload.fileName === "string" ? payload.fileName : "New file";
+      const contentType =
+        typeof payload.contentType === "string" ? payload.contentType : undefined;
+      const fileId = typeof fileIdRaw === "string" || typeof fileIdRaw === "number"
+        ? String(fileIdRaw)
+        : null;
+
+      if (!fileId) return;
+
+      queryClient.setQueryData<CanvasFile[] | undefined>(
+        ["canvas-files", canvasId],
+        (prev) => {
+          const existing = prev ?? [];
+          const isSame = (file: CanvasFile) => String(file.id) === fileId;
+          if (existing.some(isSame)) return existing;
+
+          const nextFile: CanvasFile = {
+            id: fileId,
+            name: fileName,
+            fileName,
+            kind: detectKind(contentType),
+            updatedAt: new Date().toISOString(),
+          };
+
+          return [nextFile, ...existing];
+        },
+      );
+
+      showToast("New file added", fileName);
+    });
+
+    return () => subscription.dispose();
+  }, [canvasId, onMessage, queryClient, showToast]);
 
   const {
     data: canvases = [],
@@ -303,6 +372,22 @@ export default function CanvasDetail() {
           ) : null}
         </Card>
       </div>
+
+      {toasts.length ? (
+        <div className="pointer-events-none fixed right-6 top-6 z-50 flex w-full max-w-sm flex-col gap-3 md:max-w-md">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className="pointer-events-auto overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-emerald-400/20 via-sky-400/15 to-indigo-500/15 p-4 shadow-xl shadow-emerald-500/20 backdrop-blur-xl transition duration-300"
+            >
+              <p className="text-sm font-semibold text-white">{toast.title}</p>
+              {toast.description ? (
+                <p className="mt-1 text-xs text-slate-100/80">{toast.description}</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

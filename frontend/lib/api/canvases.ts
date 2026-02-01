@@ -83,7 +83,13 @@ export const fetchFiles = async (canvasId: string): Promise<CanvasFile[]> => {
 
   const data = await parseJsonSafely(response);
   if (!data) return [];
-  return Array.isArray(data) ? data : [];
+  if (!Array.isArray(data)) return [];
+
+  return data.map((item) => ({
+    ...item,
+    // Normalize IDs to strings to keep equality checks consistent between WS payloads and API responses.
+    id: String((item as { id?: string | number | null })?.id ?? ""),
+  }));
 };
 
 export const uploadFile = async (canvasId: string, file: File): Promise<CanvasFile | null> => {
