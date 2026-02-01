@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -28,8 +27,15 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
 public class TestConfig {
 
     @Bean
-    public WebTestClient webTestClient(ApplicationContext applicationContext) {
-        return WebTestClient.bindToApplicationContext(applicationContext).build();
+    public WebTestClient webTestClient(
+            @Value("${server.port}") int port,
+            @Value("${spring.webflux.base-path:}") String basePath
+    ) {
+        String baseUrl = "http://localhost:" + port + (basePath == null ? "" : basePath);
+        // Bind to the running server so cookies/sessions behave the same way as in production
+        return WebTestClient.bindToServer()
+                .baseUrl(baseUrl)
+                .build();
     }
 
     @Bean
