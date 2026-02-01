@@ -14,6 +14,9 @@ docker compose up --build
 
 Navigate to http://localhost:3000.
 
+It takes some time to start and the notification system relies on Kafka and for the consumer group to rebalance,
+so be patient if notifications don't work right away.
+
 # Functionality
 
 * Login using admin / changeme. There's only one user right now to concentrate on the architecture.
