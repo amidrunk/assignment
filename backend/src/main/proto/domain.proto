@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+
+package encube.assignment.domain;
+
+enum FileState {
+  FILE_STATE_UNDEFINED = 0;
+  FILE_STATE_PENDING = 1;
+  FILE_STATE_UPLOADED = 2;
+  FILE_STATE_FAILED = 3;
+  FILE_STATE_DELETED = 4;
+}
+
+message FileDescriptor {
+  int64 id = 1;
+  string name = 2;
+  string contentType = 3;
+  FileState state = 4;
+}
+
+message WebSocketConnection {
+  int64 id = 1;
+  string userName = 2;
+}
+
+message WebSocketMessagePayload {
+  oneof message {
+    string textMessage = 1;
+  }
+}

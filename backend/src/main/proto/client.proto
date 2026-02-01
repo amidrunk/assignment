@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+
+package encube.assignment.client;
+
+import "domain.proto";
+
+enum ErrorCode {
+  ERROR_CODE_UNDEFINED = 0;
+  ERROR_CODE_NOT_FOUND = 1;
+}
+
+message Error {
+  ErrorCode code = 1;
+  string message = 2;
+}
+
+message WebSocketMessageRequest {
+  encube.assignment.domain.WebSocketMessagePayload message = 1;
+  oneof receiver {
+    string userName = 2;
+    int64 connectionId = 3;
+  }
+}
+
+message WebSocketMessageResponse {
+  oneof result {
+    bool success = 1;
+    Error error = 2;
+  }
+}
+
+service WebSocketClient {
+  rpc SendMessage (WebSocketMessageRequest) returns (WebSocketMessageResponse);
+}

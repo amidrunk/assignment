@@ -49,12 +49,20 @@ public class TestContextInitializer implements ApplicationContextInitializer<Con
 
         tempPath.toFile().deleteOnExit();
 
-        final int randomPort;
+        final int httpPort;
 
         try (var ss = new ServerSocket(0)) {
-            randomPort = ss.getLocalPort();
+            httpPort = ss.getLocalPort();
         } catch (IOException e) {
             throw new BeanCreationException("Failed to find random port for test server", e);
+        }
+
+        final int grpcPort;
+
+        try (var ss = new ServerSocket(0)) {
+            grpcPort = ss.getLocalPort();
+        } catch (IOException e) {
+            throw new BeanCreationException("Failed to find random port for test gRPC server", e);
         }
 
         applicationContext.getEnvironment().getPropertySources().addLast(new MapPropertySource("test-config", Map.of(
@@ -65,8 +73,9 @@ public class TestContextInitializer implements ApplicationContextInitializer<Con
                 "database.password", psql.getPassword(),
                 "database.ssl", false,
                 "file.storage.local.path", tempPath.toString(),
-                "server.port", String.valueOf(randomPort),
-                "kafka.bootstrap-servers", kafka.getBrokersAsString()
+                "server.port", String.valueOf(httpPort),
+                "kafka.bootstrap-servers", kafka.getBrokersAsString(),
+                "grpc.server.port", String.valueOf(grpcPort)
         )));
     }
 }

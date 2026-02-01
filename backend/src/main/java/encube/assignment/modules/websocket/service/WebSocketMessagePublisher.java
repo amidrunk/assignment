@@ -52,7 +52,7 @@ public class WebSocketMessagePublisher {
                                 .build())
                         .setEventId(UUID.randomUUID().toString())
                         .build())
-                .setConnection(encube.assignment.events.WebSocketConnection.newBuilder()
+                .setConnection(encube.assignment.domain.WebSocketConnection.newBuilder()
                         .setId(connection.id())
                         .setUserName(connection.payload().userName())
                         .build());

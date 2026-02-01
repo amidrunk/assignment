@@ -5,6 +5,7 @@ option java_multiple_files = true;
 package encube.assignment.events;
 
 import "google/protobuf/timestamp.proto";
+import "domain.proto";
 
 message Subject {
   string type = 1;
@@ -24,43 +25,23 @@ enum ChangeType {
   CHANGE_TYPE_DELETED = 3;
 }
 
-enum FileState {
-  FILE_STATE_UNDEFINED = 0;
-  FILE_STATE_PENDING = 1;
-  FILE_STATE_UPLOADED = 2;
-  FILE_STATE_FAILED = 3;
-  FILE_STATE_DELETED = 4;
-}
-
-message FileDescriptor {
-  int64 id = 1;
-  string name = 2;
-  string contentType = 3;
-  FileState state = 4;
-}
-
-message WebSocketConnection {
-  int64 id = 1;
-  string userName = 2;
-}
-
 message FileDescriptorChangedEvent {
   Header header = 1;
   ChangeType changeType = 2;
-  FileDescriptor oldValue = 3;
-  FileDescriptor newValue = 4;
+  encube.assignment.domain.FileDescriptor oldValue = 3;
+  encube.assignment.domain.FileDescriptor newValue = 4;
 }
 
 message WebSocketConnectionChangedEvent {
   Header header = 1;
   ChangeType changeType = 2;
-  WebSocketConnection oldValue = 3;
-  WebSocketConnection newValue = 4;
+  encube.assignment.domain.WebSocketConnection oldValue = 3;
+  encube.assignment.domain.WebSocketConnection newValue = 4;
 }
 
 message WebSocketMessageReceivedEvent {
   Header header = 1;
-  WebSocketConnection connection = 2;
+  encube.assignment.domain.WebSocketConnection connection = 2;
   oneof message {
     string textMessage = 3;
   }

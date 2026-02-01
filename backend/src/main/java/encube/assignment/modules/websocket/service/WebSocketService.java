@@ -39,6 +39,13 @@ public class WebSocketService {
 
     public Mono<Void> connectWebSocket(WebSocketSession session) {
         var hostName = resolveHostNameOfThePodIAmRunningIn();
+
+        log.info(
+                "Connecting WebSocket for {} on {}",
+                kv("sessionId", session.getId()),
+                kv("hostName", hostName)
+        );
+
         return session.getHandshakeInfo().getPrincipal().flatMap(principal -> {
             return tx.transactional(webSocketRepository.persist(WebSocketConnection.Payload.builder()
                                     .host(hostName)

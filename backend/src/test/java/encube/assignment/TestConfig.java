@@ -1,7 +1,10 @@
 package encube.assignment;
 
 import com.google.protobuf.Message;
+import encube.assignment.client.WebSocketClientGrpc;
 import encube.assignment.events.EventDeserializer;
+import io.grpc.ManagedChannelBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,7 +21,10 @@ import reactor.netty.http.client.HttpClient;
 import java.util.List;
 import java.util.Map;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 @Configuration
+@Slf4j
 public class TestConfig {
 
     @Bean
@@ -39,5 +45,21 @@ public class TestConfig {
                         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"
                 )).withKeyDeserializer(new StringDeserializer())
                 .withValueDeserializer(new EventDeserializer()).subscription(List.of("encube.WebSocketMessageReceivedEvent")));
+    }
+
+    @Bean
+    public WebSocketClientGrpc.WebSocketClientBlockingV2Stub webSocketClientGrpcStub(
+            @Value("${grpc.server.port}") int grpcPort
+    ) {
+        var channel = ManagedChannelBuilder.forTarget("localhost:" + grpcPort)
+                .build();
+
+        log.info(
+                "Configured gRPC WebSocketClientGrpc stub on {} {}",
+                kv("host", "localhost"),
+                kv("port", grpcPort)
+        );
+
+        return WebSocketClientGrpc.newBlockingV2Stub(channel);
     }
 }

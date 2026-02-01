@@ -4,6 +4,9 @@ import com.google.protobuf.Message;
 import encube.assignment.DomainEventReader;
 import encube.assignment.IntegrationTest;
 import encube.assignment.TestHelper;
+import encube.assignment.client.WebSocketClientGrpc;
+import encube.assignment.client.WebSocketMessageRequest;
+import encube.assignment.domain.WebSocketMessagePayload;
 import encube.assignment.events.ChangeType;
 import encube.assignment.events.WebSocketConnectionChangedEvent;
 import encube.assignment.events.WebSocketMessageReceivedEvent;
@@ -49,9 +52,12 @@ public class WebSocketTest {
     @Autowired
     private KafkaReceiver<String, Message> eventReceiver;
 
+    @Autowired
+    private WebSocketClientGrpc.WebSocketClientBlockingV2Stub webSocketClientGrpc;
+
     @Test
     void domain_event_should_be_publish_on_web_socket_connection_and_disconnection() throws Exception {
-        connect(_ -> Mono.empty()).block();
+        connect(WebSocketSession::close).block(Duration.ofSeconds(5));
 
         var connectEvent = domainEventReader.all()
                 .filter(WebSocketConnectionChangedEvent.class::isInstance)
@@ -59,7 +65,7 @@ public class WebSocketTest {
                 .filter(e -> e.getChangeType() == ChangeType.CHANGE_TYPE_CREATED)
                 .single()
                 .retryWhen(Retry.fixedDelay(100, Duration.ofMillis(100)).filter(e -> e instanceof NoSuchElementException))
-                .block();
+                .block(Duration.ofSeconds(5));
 
         assertThat(connectEvent.getChangeType()).isEqualTo(ChangeType.CHANGE_TYPE_CREATED);
         assertThat(connectEvent.getNewValue().getUserName()).isEqualTo("admin");
@@ -70,7 +76,7 @@ public class WebSocketTest {
                 .filter(e -> e.getChangeType() == ChangeType.CHANGE_TYPE_DELETED)
                 .single()
                 .retryWhen(Retry.fixedDelay(100, Duration.ofMillis(100)).filter(e -> e instanceof NoSuchElementException))
-                .block();
+                .block(Duration.ofSeconds(5));
 
         assertThat(disconnectEvent.getChangeType()).isEqualTo(ChangeType.CHANGE_TYPE_DELETED);
         assertThat(disconnectEvent.getOldValue().getUserName()).isEqualTo("admin");
@@ -103,16 +109,30 @@ public class WebSocketTest {
                                 .next()
                                 .doOnNext(sink::tryEmitValue)
                                 .then()),
-                domainEventReader.all()
-                        .filter(WebSocketConnectionChangedEvent.class::isInstance)
-                        .cast(WebSocketConnectionChangedEvent.class)
-                        .filter(e -> e.getChangeType() == ChangeType.CHANGE_TYPE_CREATED)
-                        .next()
-                        .flatMap(event -> {
-                            var connectionId = event.getNewValue().getId();
+                        domainEventReader.all()
+                                .filter(WebSocketConnectionChangedEvent.class::isInstance)
+                                .cast(WebSocketConnectionChangedEvent.class)
+                                .filter(e -> e.getChangeType() == ChangeType.CHANGE_TYPE_CREATED)
+                                .single()
+                                .retryWhen(Retry.fixedDelay(100, Duration.ofMillis(100)).filter(e -> e instanceof NoSuchElementException))
+                                .flatMap(event -> {
+                                    var connectionId = event.getNewValue().getId();
 
-                            return Mono.empty();
-                        })
+                                    return Mono.fromCallable(() -> {
+                                        return webSocketClientGrpc.sendMessage(WebSocketMessageRequest.newBuilder()
+                                                .setConnectionId(connectionId)
+                                                .setMessage(WebSocketMessagePayload.newBuilder()
+                                                        .setTextMessage("Hello World!")
+                                                        .build())
+                                                .build());
+                                    }).flatMap(response -> {
+                                        if (response.hasError()) {
+                                            return Mono.error(new IllegalStateException("Failed to send WebSocket message: " + response.getError().getMessage()));
+                                        } else {
+                                            return Mono.empty();
+                                        }
+                                    });
+                                })
                 )
                 .then()
                 .block();

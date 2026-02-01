@@ -2,6 +2,8 @@ package encube.assignment.modules.files.service;
 
 import com.google.protobuf.Timestamp;
 import encube.assignment.events.*;
+import encube.assignment.events.Header;
+import encube.assignment.events.Subject;
 import encube.assignment.modules.files.domain.FileDescriptor;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.Validate;
@@ -73,14 +75,14 @@ public class FileEventPublisher {
         return eventPublisher.publish(events);
     }
 
-    private static encube.assignment.events.FileDescriptor toProtoFileDescriptor(FileDescriptor fd) {
-        return encube.assignment.events.FileDescriptor.newBuilder()
+    private static encube.assignment.domain.FileDescriptor toProtoFileDescriptor(FileDescriptor fd) {
+        return encube.assignment.domain.FileDescriptor.newBuilder()
                 .setId(fd.id())
                 .setState(switch (fd.state()) {
-                    case DELETED -> FileState.FILE_STATE_DELETED;
-                    case FAILED -> FileState.FILE_STATE_FAILED;
-                    case PENDING -> FileState.FILE_STATE_PENDING;
-                    case UPLOADED -> FileState.FILE_STATE_UPLOADED;
+                    case DELETED -> encube.assignment.domain.FileState.FILE_STATE_DELETED;
+                    case FAILED -> encube.assignment.domain.FileState.FILE_STATE_FAILED;
+                    case PENDING -> encube.assignment.domain.FileState.FILE_STATE_PENDING;
+                    case UPLOADED -> encube.assignment.domain.FileState.FILE_STATE_UPLOADED;
                 })
                 .setName(fd.payload().fileName())
                 .setContentType(fd.payload().contentType())
