@@ -39,11 +39,29 @@ message FileDescriptor {
   FileState state = 4;
 }
 
+message WebSocketConnection {
+  int64 id = 1;
+  string userName = 2;
+}
+
 message FileDescriptorChangedEvent {
   Header header = 1;
   ChangeType changeType = 2;
-  oneof value {
-    FileDescriptor oldValue = 3;
-    FileDescriptor newValue = 4;
+  FileDescriptor oldValue = 3;
+  FileDescriptor newValue = 4;
+}
+
+message WebSocketConnectionChangedEvent {
+  Header header = 1;
+  ChangeType changeType = 2;
+  WebSocketConnection oldValue = 3;
+  WebSocketConnection newValue = 4;
+}
+
+message WebSocketMessageReceivedEvent {
+  Header header = 1;
+  WebSocketConnection connection = 2;
+  oneof message {
+    string textMessage = 3;
   }
 }

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
 @Component
-@Profile("provision")
+@Profile({"provision", "provision-database"})
 @Slf4j
 public class DatabaseProvisioner implements ApplicationRunner {
 

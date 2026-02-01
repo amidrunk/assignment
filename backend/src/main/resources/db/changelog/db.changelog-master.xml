@@ -49,6 +49,21 @@
                 <constraints nullable="false" />
             </column>
         </createTable>
+
+        <createTable tableName="web_socket_connection">
+            <column name="id" type="serial">
+                <constraints primaryKey="true" />
+            </column>
+            <column name="session_id" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="user_name" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="host" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
     </changeSet>
 
 </databaseChangeLog>

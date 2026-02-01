@@ -1,6 +1,7 @@
-package encube.assignment.files.api;
+package encube.assignment.modules.files.api;
 
 import encube.assignment.IntegrationTest;
+import encube.assignment.TestHelper;
 import encube.assignment.modules.files.api.protocol.CreateFileRequest;
 import encube.assignment.modules.files.domain.FileDescriptor;
 import org.jspecify.annotations.NonNull;
@@ -24,6 +25,8 @@ class FileApiTest {
 
     @Autowired
     private WebTestClient webTestClient;
+    @Autowired
+    private TestHelper testHelper;
 
     @Test
     void files_should_be_empty_if_no_files_have_been_created() {
@@ -65,7 +68,7 @@ class FileApiTest {
     }
 
     private WebTestClient authenticatedClient() {
-        var sessionCookie = login();
+        var sessionCookie = testHelper.login();
 
         return webTestClient.mutate()
                 .defaultCookie(sessionCookie.getName(), sessionCookie.getValue())
@@ -101,26 +104,12 @@ class FileApiTest {
 
         WebTestClient client = authenticatedClient();
 
-        WebTestClient.ResponseSpec responseSpec = client.post()
+        return client.post()
                 .uri("/files")
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(BodyInserters.fromMultipartData(multipartData))
                 .exchange();
-        return responseSpec;
     }
 
-    private org.springframework.http.ResponseCookie login() {
-        var result = webTestClient.post()
-                .uri("/login")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(BodyInserters.fromFormData("username", "admin")
-                        .with("password", "changeme"))
-                .exchange()
-                .expectStatus().is3xxRedirection()
-                .returnResult(Void.class);
 
-        var session = result.getResponseCookies().getFirst("SESSION");
-        assertThat(session).as("session cookie from login").isNotNull();
-        return session;
-    }
 }
