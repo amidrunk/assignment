@@ -13,6 +13,8 @@ import reactor.core.publisher.Sinks;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
@@ -28,6 +30,11 @@ public class WebSocketService {
 
     private final WebSocketEventPublisher webSocketEventPublisher;
     private final WebSocketMessagePublisher webSocketMessagePublisher;
+
+    private final ConcurrentHashMap<Long, ConnectionContext> connections = new ConcurrentHashMap<>();
+
+    private record ConnectionContext(WebSocketConnection connection, Sinks.Many<WebSocketMessage> outbox) {
+    }
 
     public WebSocketService(WebSocketRepository webSocketRepository, TransactionalOperator tx, @Value("${server.port}") int localPort, WebSocketEventPublisher webSocketEventPublisher, WebSocketMessagePublisher webSocketMessagePublisher) {
         this.webSocketRepository = webSocketRepository;
@@ -68,6 +75,7 @@ public class WebSocketService {
                     .flatMap(webSocketConnection -> {
                         var outbox = Sinks.many().unicast().<WebSocketMessage>onBackpressureBuffer();
 
+                        connections.put(webSocketConnection.id(), new ConnectionContext(webSocketConnection, outbox));
 
                         return Flux.merge(
                                 outbox.asFlux()
@@ -87,7 +95,8 @@ public class WebSocketService {
 
                                             return webSocketMessagePublisher.publish(webSocketConnection, message);
                                         })
-                        ).then(Mono.just(webSocketConnection));
+                        ).then(Mono.just(webSocketConnection))
+                                .doFinally(__ -> connections.remove(webSocketConnection.id()));
                     })
                     .flatMap(webSocketConnection -> {
                         return tx.transactional(webSocketRepository.deleteById(webSocketConnection.id())
@@ -97,11 +106,29 @@ public class WebSocketService {
     }
 
     public Mono<Void> sendMessageToUser(String userName, WebSocketMessage message) {
-        return  Mono.empty();
+        return Flux.fromIterable(connections.values())
+                .filter(ctx -> ctx.connection().payload().userName().equals(userName))
+                .switchIfEmpty(Mono.error(new NoSuchElementException("No WebSocket connection for user " + userName)))
+                .flatMap(ctx -> sendMessageToConnection(ctx.connection().id(), message))
+                .then();
     }
 
     public Mono<Void> sendMessageToConnection(Long id, WebSocketMessage message) {
-        return Mono.empty();
+        return Mono.defer(() -> {
+            var ctx = connections.get(id);
+
+            if (ctx == null) {
+                return Mono.error(new NoSuchElementException("WebSocket connection " + id + " not found"));
+            }
+
+            var emitResult = ctx.outbox().tryEmitNext(message);
+
+            if (emitResult.isFailure()) {
+                return Mono.error(new IllegalStateException("Failed to enqueue message for connection " + id + ": " + emitResult));
+            }
+
+            return Mono.empty();
+        });
     }
 
     private String resolveHostNameOfThePodIAmRunningIn() {

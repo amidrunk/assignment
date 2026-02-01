@@ -52,6 +52,7 @@ public class TestConfig {
             @Value("${grpc.server.port}") int grpcPort
     ) {
         var channel = ManagedChannelBuilder.forTarget("localhost:" + grpcPort)
+                .usePlaintext()
                 .build();
 
         log.info(

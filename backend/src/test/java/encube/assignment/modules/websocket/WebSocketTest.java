@@ -107,8 +107,9 @@ public class WebSocketTest {
         Flux.merge(
                         connect(session -> session.receive()
                                 .next()
+                                .doOnNext(WebSocketMessage::retain)
                                 .doOnNext(sink::tryEmitValue)
-                                .then()),
+                                .then(session.close())),
                         domainEventReader.all()
                                 .filter(WebSocketConnectionChangedEvent.class::isInstance)
                                 .cast(WebSocketConnectionChangedEvent.class)
@@ -136,6 +137,13 @@ public class WebSocketTest {
                 )
                 .then()
                 .block();
+
+        var sentMessage = sink.asMono().block(Duration.ofSeconds(5));
+
+        assertThat(sentMessage).isNotNull();
+        assertThat(sentMessage.getPayloadAsText()).isEqualTo("Hello World!");
+
+        sentMessage.release();
     }
 
     private Mono<Void> connect(Function<WebSocketSession, Mono<Void>> messageHandler) {
