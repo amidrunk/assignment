@@ -88,7 +88,7 @@
         </createTable>
 
         <createTable tableName="canvas_subscription">
-            <column name="id">
+            <column name="id" type="serial">
                 <constraints primaryKey="true" />
             </column>
             <column name="canvas_id" type="integer">

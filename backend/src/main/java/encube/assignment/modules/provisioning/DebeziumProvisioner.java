@@ -118,7 +118,7 @@ public class DebeziumProvisioner implements ApplicationRunner {
                         Map.entry("plugin.name", "pgoutput"),
                         Map.entry("transforms", "outbox"),
                         Map.entry("transforms.outbox.type", "io.debezium.transforms.outbox.EventRouter"),
-                        Map.entry("transforms.outbox.table.fields.additional.placement", "type:header:protobuf_type_name,aggregateid:header"),
+                        Map.entry("transforms.outbox.table.fields.additional.placement", "protobuf_type_name:header:protobuf_type_name,aggregateid:header"),
                         Map.entry("transforms.outbox.route.topic.replacement", "encube.${routedByValue}"),
                         Map.entry("value.converter", "io.debezium.converters.BinaryDataConverter"),
                         Map.entry("topic.prefix", "encube")

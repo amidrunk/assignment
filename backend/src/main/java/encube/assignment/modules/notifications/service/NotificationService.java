@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.kafka.receiver.KafkaReceiver;
@@ -36,12 +37,16 @@ public class NotificationService implements ApplicationRunner {
 
     private final SubscriptionRepository subscriptionRepository;
 
+    private final TransactionalOperator tx;
+
     public NotificationService(@Value("${kafka.bootstrap-servers}") String kafkaBootstrapServers,
                                JsonMapper jsonMapper,
-                               SubscriptionRepository subscriptionRepository) {
+                               SubscriptionRepository subscriptionRepository,
+                               TransactionalOperator tx) {
         this.kafkaBootstrapServers = kafkaBootstrapServers;
         this.jsonMapper = jsonMapper;
         this.subscriptionRepository = subscriptionRepository;
+        this.tx = tx;
     }
 
     @Override
@@ -99,15 +104,18 @@ public class NotificationService implements ApplicationRunner {
                             .canvasId(canvasId)
                             .webSocketConnectionId(e.getConnection().getId())
                             .build())
+                            .as(tx::transactional)
                             .then();
             case SubscriptionMessage.Unsubscribe(Long canvasId) ->
-                    subscriptionRepository.deleteByCanvasIdAndWebSocketConnectionId(canvasId, e.getConnection().getId());
+                    subscriptionRepository.deleteByCanvasIdAndWebSocketConnectionId(canvasId, e.getConnection().getId())
+                            .as(tx::transactional);
         };
     }
 
     private Mono<Void> processWebSocketConnectionChanged(WebSocketConnectionChangedEvent e) {
         return switch (e.getChangeType()) {
-            case CHANGE_TYPE_DELETED -> subscriptionRepository.deleteByWebSocketConnectionId(e.getOldValue().getId());
+            case CHANGE_TYPE_DELETED -> subscriptionRepository.deleteByWebSocketConnectionId(e.getOldValue().getId())
+                    .as(tx::transactional);
             default -> Mono.empty();
         };
     }
