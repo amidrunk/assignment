@@ -1,6 +1,7 @@
 package encube.assignment.modules.notifications.service;
 
 import com.google.protobuf.Message;
+import encube.assignment.domain.FileState;
 import encube.assignment.events.EventDeserializer;
 import encube.assignment.events.FileDescriptorChangedEvent;
 import encube.assignment.events.WebSocketConnectionChangedEvent;
@@ -8,6 +9,8 @@ import encube.assignment.events.WebSocketMessageReceivedEvent;
 import encube.assignment.modules.notifications.domain.Subscription;
 import encube.assignment.modules.notifications.domain.SubscriptionMessage;
 import encube.assignment.modules.notifications.repository.SubscriptionRepository;
+import encube.assignment.modules.websocket.service.WebSocketMessage;
+import encube.assignment.modules.websocket.service.WebSocketService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -24,6 +27,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
@@ -38,15 +42,17 @@ public class NotificationService implements ApplicationRunner {
     private final SubscriptionRepository subscriptionRepository;
 
     private final TransactionalOperator tx;
+    private final WebSocketService webSocketService;
 
     public NotificationService(@Value("${kafka.bootstrap-servers}") String kafkaBootstrapServers,
                                JsonMapper jsonMapper,
                                SubscriptionRepository subscriptionRepository,
-                               TransactionalOperator tx) {
+                               TransactionalOperator tx, WebSocketService webSocketService) {
         this.kafkaBootstrapServers = kafkaBootstrapServers;
         this.jsonMapper = jsonMapper;
         this.subscriptionRepository = subscriptionRepository;
         this.tx = tx;
+        this.webSocketService = webSocketService;
     }
 
     @Override
@@ -85,8 +91,43 @@ public class NotificationService implements ApplicationRunner {
     private Mono<Void> processMessage(Message message) {
         return switch (message) {
             case WebSocketMessageReceivedEvent e -> processWebSocketMessageReceived(e);
-            case FileDescriptorChangedEvent e -> Mono.empty();
+            case FileDescriptorChangedEvent e -> processFileDescriptorChanged(e);
             case WebSocketConnectionChangedEvent e -> processWebSocketConnectionChanged(e);
+            default -> Mono.empty();
+        };
+    }
+
+    private Mono<Void> processFileDescriptorChanged(FileDescriptorChangedEvent e) {
+        return switch (e.getChangeType()) {
+            case CHANGE_TYPE_UPDATED, CHANGE_TYPE_CREATED -> {
+                if (e.getNewValue().getState() != FileState.FILE_STATE_UPLOADED) {
+                    log.info(
+                            "Ignoring FileDescriptorChangedEvent for non-uploaded file: fileId={}",
+                            kv("fileId", e.getNewValue().getId())
+                    );
+
+                    yield Mono.empty();
+                }
+
+                var canvasIdAsString = e.getNewValue().getAttributesMap().get("canvasId");
+
+                if (canvasIdAsString == null) {
+                    log.info(
+                            "Ignoring FileDescriptorChangedEvent for file without canvasId attribute: fileId={}",
+                            kv("fileId", e.getNewValue().getId())
+                    );
+
+                    yield Mono.empty();
+                }
+
+                var canvasId = Long.parseLong(canvasIdAsString);
+
+                yield subscriptionRepository.findByCanvasId(canvasId)
+                        .flatMap(subscription -> {
+                            return webSocketService.sendMessageToConnection(subscription.payload().webSocketConnectionId(), new WebSocketMessage.Text("Hello World!"));
+                        })
+                        .then();
+            }
             default -> Mono.empty();
         };
     }

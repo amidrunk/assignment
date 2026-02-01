@@ -68,6 +68,22 @@ public class FileDescriptorRepository {
                     .asField())
             .from(table("file_descriptor").as("fd"));
 
+    private static final Query SQL_FIND_ALL_BY_ATTRIBUTE = select(
+            asterisk(),
+            select(jsonArrayAgg(field("fa.*")).as("attributes"))
+                    .from(table("file_attribute").as("fa"))
+                    .where(field("fa.file_id").eq(field("fd.id")))
+                    .asField())
+            .from(table("file_descriptor").as("fd"))
+            .where(exists(
+                    selectOne()
+                            .from(table("file_attribute").as("fa_filter"))
+                            .where(field("fa_filter.file_id").eq(field("fd.id"))
+                                    .and(field("fa_filter.name").eq(field("$1")))
+                                    .and(field("fa_filter.value").eq(field("$2")))
+                            )
+            ));
+
     private static final Query SQL_FIND_BY_ID = select(asterisk())
             .from(SQL_FIND_ALL)
             .where(field("id").eq(field("$1")));
@@ -218,6 +234,19 @@ public class FileDescriptorRepository {
     public Flux<FileDescriptor> findAll() {
         var sql = jooq.render(SQL_FIND_ALL);
         return db.inConnectionMany(connection -> Flux.from(connection.createStatement(sql).execute())
+                .flatMap(result -> result.map(this::rowToFileDescriptor)));
+    }
+
+    public Flux<FileDescriptor> findAllByAttribute(String name, String value) {
+        Validate.notNull(name, "name must not be null");
+        Validate.notNull(value, "value must not be null");
+
+        var sql = jooq.render(SQL_FIND_ALL_BY_ATTRIBUTE);
+
+        return db.inConnectionMany(connection -> Flux.from(connection.createStatement(sql)
+                        .bind(0, name)
+                        .bind(1, value)
+                        .execute())
                 .flatMap(result -> result.map(this::rowToFileDescriptor)));
     }
 

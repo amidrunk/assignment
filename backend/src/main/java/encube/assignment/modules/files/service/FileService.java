@@ -55,4 +55,12 @@ public class FileService {
     public Flux<FileDescriptor> listFiles() {
         return fileDescriptorRepository.findAll();
     }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public Flux<FileDescriptor> listFilesByAttribute(String name, String value) {
+        Validate.notNull(name, "name must not be null");
+        Validate.notNull(value, "value must not be null");
+
+        return fileDescriptorRepository.findAllByAttribute(name, value);
+    }
 }

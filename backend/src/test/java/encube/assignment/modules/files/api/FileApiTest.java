@@ -105,6 +105,36 @@ class FileApiTest {
                 .containsEntry("owner", "user123");
     }
 
+    @Test
+    void files_can_be_filtered_by_canvas_id_query_param() {
+        var fileWithCanvas = FileDescriptor.Payload.builder()
+                .fileName("canvas-file.txt")
+                .contentType("text/plain")
+                .attributes(Map.of("canvasId", "1234", "other", "keep"))
+                .build();
+
+        var otherFile = FileDescriptor.Payload.builder()
+                .fileName("other-file.txt")
+                .contentType("text/plain")
+                .attributes(Map.of("canvasId", "5678"))
+                .build();
+
+        uploadFileThen(fileWithCanvas, "canvas content").expectStatus().isCreated();
+        uploadFileThen(otherFile, "other content").expectStatus().isCreated();
+
+        testHelper.authenticatedClient().get()
+                .uri(builder -> builder.path("/files").queryParam("canvasId", "1234").build())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(FileDescriptor.class)
+                .hasSize(1)
+                .value(fileDescriptors -> {
+                    var fd = fileDescriptors.get(0);
+                    assertThat(fd.payload().fileName()).isEqualTo("canvas-file.txt");
+                    assertThat(fd.payload().attributes()).containsEntry("canvasId", "1234");
+                });
+    }
+
     private WebTestClient.@NonNull ResponseSpec uploadFileThen(FileDescriptor.Payload fileDescriptor, String content) {
         var createFileRequest = CreateFileRequest.builder()
                 .fileDescriptor(fileDescriptor)

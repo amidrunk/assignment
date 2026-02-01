@@ -20,7 +20,12 @@ public class FileApiController {
 
     @GetMapping("/files")
     @ResponseStatus(HttpStatus.OK)
-    public Flux<FileDescriptor> handleSearchFiles(@AuthenticationPrincipal UserDetails user) {
+    public Flux<FileDescriptor> handleSearchFiles(@AuthenticationPrincipal UserDetails user,
+                                                  @RequestParam(name = "canvasId", required = false) String canvasId) {
+        if (canvasId != null) {
+            return fileService.listFilesByAttribute("canvasId", canvasId);
+        }
+
         return fileService.listFiles();
     }
 

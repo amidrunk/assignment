@@ -18,3 +18,5 @@ Time constraints have led to some trade-offs in the implementation:
 * Authentication and authorization are only minimally implemented to demonstrate the architecture. In a production system,
     a JWT authorization scheme would have been appropriate, where the JWT also carries the user's organization id which subsequently
     can be used to resolve encryption keys for files and whatnot (to enforce complete isolation between organizations).
+* Files are loosly associated with canvases through file attributes. This is obviously not feasible for a production application,
+    but it is sufficient to demonstrate the architecture.

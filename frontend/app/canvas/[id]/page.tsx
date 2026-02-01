@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { DragEvent, useCallback, useMemo, useRef, useState } from "react";
+import { DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import Badge from "@/components/Badge";
@@ -10,6 +10,7 @@ import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Header from "@/components/Header";
 import { Canvas, CanvasFile, fetchCanvases, fetchFiles, uploadFile } from "@/lib/api/canvases";
+import { useWebSocket } from "@/providers/WebSocketProvider";
 
 const formatDateTime = (value?: string) => {
   if (!value) return null;
@@ -91,7 +92,40 @@ export default function CanvasDetail() {
   const queryClient = useQueryClient();
   const canvasId = params.id;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const activeSubscriptionRef = useRef<string | null>(null);
+  const pendingUnsubscribeRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const { sendMessage } = useWebSocket();
+
+  useEffect(() => {
+    if (!canvasId) return;
+
+    // Cancel a pending unsubscribe caused by React StrictMode remounts for the same canvas.
+    if (pendingUnsubscribeRef.current?.id === canvasId) {
+      clearTimeout(pendingUnsubscribeRef.current.timer);
+      pendingUnsubscribeRef.current = null;
+    }
+
+    // Avoid duplicate subscribe messages when the effect re-runs without a canvas change.
+    if (activeSubscriptionRef.current !== canvasId) {
+      sendMessage({ type: "subscribe", canvasId });
+      activeSubscriptionRef.current = canvasId;
+    }
+
+    return () => {
+      const timer = setTimeout(() => {
+        sendMessage({ type: "unsubscribe", canvasId });
+        if (activeSubscriptionRef.current === canvasId) {
+          activeSubscriptionRef.current = null;
+        }
+        if (pendingUnsubscribeRef.current?.timer === timer) {
+          pendingUnsubscribeRef.current = null;
+        }
+      }, 0);
+
+      pendingUnsubscribeRef.current = { id: canvasId, timer };
+    };
+  }, [canvasId, sendMessage]);
 
   const {
     data: canvases = [],
