@@ -36,7 +36,7 @@ class FileApiTest {
 
     @Test
     void files_should_be_empty_if_no_files_have_been_created() {
-        authenticatedClient().get()
+        testHelper.authenticatedClient().get()
                 .uri("/files")
                 .exchange()
                 .expectStatus().isOk()
@@ -60,7 +60,7 @@ class FileApiTest {
                     assertThat(actualFileDescriptor.payload().contentType()).isEqualTo("text/plain");
                 });
 
-        authenticatedClient().get()
+        testHelper.authenticatedClient().get()
                 .uri("/files")
                 .exchange()
                 .expectStatus().isOk()
@@ -105,14 +105,6 @@ class FileApiTest {
                 .containsEntry("owner", "user123");
     }
 
-    private WebTestClient authenticatedClient() {
-        var sessionCookie = testHelper.login();
-
-        return webTestClient.mutate()
-                .defaultCookie(sessionCookie.getName(), sessionCookie.getValue())
-                .build();
-    }
-
     private WebTestClient.@NonNull ResponseSpec uploadFileThen(FileDescriptor.Payload fileDescriptor, String content) {
         var createFileRequest = CreateFileRequest.builder()
                 .fileDescriptor(fileDescriptor)
@@ -140,7 +132,7 @@ class FileApiTest {
         multipartData.add("descriptor", descriptorPart);
         multipartData.add("file", filePart);
 
-        WebTestClient client = authenticatedClient();
+        WebTestClient client = testHelper.authenticatedClient();
 
         return client.post()
                 .uri("/files")

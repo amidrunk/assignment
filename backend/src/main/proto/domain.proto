@@ -30,3 +30,8 @@ message WebSocketMessagePayload {
     string textMessage = 1;
   }
 }
+
+message Canvas {
+  int64 id = 1;
+  string name = 2;
+}

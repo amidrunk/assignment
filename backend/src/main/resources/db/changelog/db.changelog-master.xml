@@ -26,6 +26,16 @@
                 <constraints nullable="false" />
             </column>
         </createTable>
+
+        <createTable tableName="canvas">
+            <column name="id" type="serial">
+                <constraints primaryKey="true" />
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
         <sql>
             create type file_state as enum ('PENDING', 'UPLOADED', 'FAILED', 'DELETED');
         </sql>

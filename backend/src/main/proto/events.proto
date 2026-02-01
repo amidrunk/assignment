@@ -46,3 +46,10 @@ message WebSocketMessageReceivedEvent {
     string textMessage = 3;
   }
 }
+
+message CanvasChangedEvent {
+  Header header = 1;
+  ChangeType changeType = 2;
+  encube.assignment.domain.Canvas oldValue = 3;
+  encube.assignment.domain.Canvas newValue = 4;
+}

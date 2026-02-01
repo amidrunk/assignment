@@ -49,4 +49,12 @@ public class TestHelper {
         assertThat(session).as("session cookie from login").isNotNull();
         return session;
     }
+
+    public WebTestClient authenticatedClient() {
+        var sessionCookie = login();
+
+        return webTestClient.mutate()
+                .defaultCookie(sessionCookie.getName(), sessionCookie.getValue())
+                .build();
+    }
 }
