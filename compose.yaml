@@ -20,7 +20,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       FILE_STORAGE_PATH: /data/files
     volumes:
-      - ./data/files/:/data/files
+      - ./.data/files/:/data/files
   db:
     image: "postgres:latest"
     ports:
@@ -32,7 +32,7 @@ services:
     command: >
       bash -c "exec docker-entrypoint.sh postgres -c wal_level=logical -c max_wal_senders=10 -c max_replication_slots=10 -c wal_sender_timeout=0"
     volumes:
-      - ./.data/:/var/lib/postgresql/data/
+      - ./.data/postgres/:/var/lib/postgresql/data/
   kafka:
     image: quay.io/debezium/kafka:3.4.1.Final
     ports:
@@ -44,6 +44,8 @@ services:
       - NODE_ROLE=combined
       - KAFKA_LISTENERS=PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
       - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+    volumes:
+      - ./.data/kafka/:/kafka/data
   connect:
     image: quay.io/debezium/connect:3.4.1.Final
     ports:

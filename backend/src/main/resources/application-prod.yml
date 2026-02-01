@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 database:
   host: ${DB_HOST}
@@ -21,3 +21,7 @@ file:
     type: local
     local:
       path: ${FILE_STORAGE_PATH}
+
+grpc:
+  server:
+    port: ${GRPC_SERVER_PORT:9090}
