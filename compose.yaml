@@ -21,6 +21,15 @@ services:
       FILE_STORAGE_PATH: /data/files
     volumes:
       - ./.data/files/:/data/files
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
   db:
     image: "postgres:latest"
     ports:

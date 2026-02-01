@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import Badge from "@/components/Badge";
 import Button from "@/components/Button";
@@ -17,7 +17,7 @@ const highlights = [
   { label: "Cloud accelerated", tone: "amber" as const },
 ];
 
-export default function Login() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
@@ -154,5 +154,19 @@ export default function Login() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white">
+          <span className="text-sm text-slate-200/80">Preparing sign-in…</span>
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }
