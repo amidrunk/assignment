@@ -77,11 +77,12 @@ public class WebSocketService {
 
                         connections.put(webSocketConnection.id(), new ConnectionContext(webSocketConnection, outbox));
 
-                        return Flux.merge(
+                        return Flux.firstWithSignal(
                                 outbox.asFlux()
                                         .flatMap(outgoingMessage -> switch (outgoingMessage) {
                                             case WebSocketMessage.Text(String payload) -> session.send(Mono.just(session.textMessage(payload)));
-                                        }),
+                                        })
+                                        .then(),
                                 session.receive()
                                         .flatMap(webSocketMessage -> {
                                             var message = switch (webSocketMessage.getType()) {
@@ -95,6 +96,7 @@ public class WebSocketService {
 
                                             return webSocketMessagePublisher.publish(webSocketConnection, message);
                                         })
+                                        .then()
                         ).then(Mono.just(webSocketConnection))
                                 .doFinally(__ -> connections.remove(webSocketConnection.id()));
                     })
@@ -121,7 +123,11 @@ public class WebSocketService {
                 return Mono.error(new NoSuchElementException("WebSocket connection " + id + " not found"));
             }
 
-            var emitResult = ctx.outbox().tryEmitNext(message);
+            final Sinks.EmitResult emitResult;
+
+            synchronized (ctx.outbox()) {
+                emitResult = ctx.outbox().tryEmitNext(message);
+            }
 
             if (emitResult.isFailure()) {
                 return Mono.error(new IllegalStateException("Failed to enqueue message for connection " + id + ": " + emitResult));

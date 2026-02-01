@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 import java.util.NoSuchElementException;
@@ -28,34 +29,37 @@ public class WebSocketGrpcService extends WebSocketClientGrpc.WebSocketClientImp
 
     @Override
     public void sendMessage(WebSocketMessageRequest request, StreamObserver<WebSocketMessageResponse> responseObserver) {
-        try {
-            var message = toDomainMessage(request);
+        var message = toDomainMessage(request);
 
-            Mono<Void> action;
-            if (request.hasConnectionId()) {
-                action = webSocketService.sendMessageToConnection(request.getConnectionId(), message);
-            } else if (request.hasUserName()) {
-                action = webSocketService.sendMessageToUser(request.getUserName(), message);
-            } else {
-                throw new IllegalArgumentException("receiver must be provided (connectionId or userName)");
-            }
+        Mono<Void> action;
 
-            action.timeout(timeout).block();
-
-            responseObserver.onNext(WebSocketMessageResponse.newBuilder()
-                    .setSuccess(true)
-                    .build());
-            responseObserver.onCompleted();
-        } catch (Exception e) {
-            log.error("Failed to send WebSocket message via gRPC", e);
-            responseObserver.onNext(WebSocketMessageResponse.newBuilder()
-                    .setError(toError(e))
-                    .build());
-            responseObserver.onCompleted();
+        if (request.hasConnectionId()) {
+            action = webSocketService.sendMessageToConnection(request.getConnectionId(), message);
+        } else if (request.hasUserName()) {
+            action = webSocketService.sendMessageToUser(request.getUserName(), message);
+        } else {
+            throw new IllegalArgumentException("receiver must be provided (connectionId or userName)");
         }
+
+        action.timeout(timeout)
+                .doOnError(e -> {
+
+                })
+                .doOnSuccess(_ -> {
+                    responseObserver.onNext(WebSocketMessageResponse.newBuilder()
+                            .setSuccess(true)
+                            .build());
+
+                })
+                .doOnError(e -> responseObserver.onNext(WebSocketMessageResponse.newBuilder()
+                        .setError(toError(e))
+                        .build()))
+                .doFinally(_ -> responseObserver.onCompleted())
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe();
     }
 
-    private static encube.assignment.client.Error toError(Exception e) {
+    private static encube.assignment.client.Error toError(Throwable e) {
         var builder = encube.assignment.client.Error.newBuilder()
                 .setMessage(e.getMessage() == null ? e.toString() : e.getMessage());
 
