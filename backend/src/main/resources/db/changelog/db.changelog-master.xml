@@ -86,6 +86,18 @@
                 <constraints nullable="false" />
             </column>
         </createTable>
+
+        <createTable tableName="canvas_subscription">
+            <column name="id">
+                <constraints primaryKey="true" />
+            </column>
+            <column name="canvas_id" type="integer">
+                <constraints nullable="false" />
+            </column>
+            <column name="websocket_connection_id" type="integer">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
     </changeSet>
 
 </databaseChangeLog>

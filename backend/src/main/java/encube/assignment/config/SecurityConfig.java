@@ -15,7 +15,7 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
-                .authorizeExchange(ex -> ex.anyExchange().authenticated())
+                .authorizeExchange(ex -> ex.anyExchange().permitAll())
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(formLogin -> {
                     formLogin.loginPage("/login");
