@@ -75,7 +75,6 @@ public class SubscriptionRepository {
                 .then();
     }
 
-    @Transactional(propagation = Propagation.MANDATORY)
     public Flux<Subscription> findByCanvasId(Long canvasId) {
         Validate.notNull(canvasId, "canvasId must not be null");
 

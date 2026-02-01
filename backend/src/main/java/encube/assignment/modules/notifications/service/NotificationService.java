@@ -11,6 +11,7 @@ import encube.assignment.modules.notifications.domain.SubscriptionMessage;
 import encube.assignment.modules.notifications.repository.SubscriptionRepository;
 import encube.assignment.modules.websocket.service.WebSocketMessage;
 import encube.assignment.modules.websocket.service.WebSocketService;
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -27,6 +28,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static net.logstash.logback.argument.StructuredArguments.kv;
@@ -124,12 +126,33 @@ public class NotificationService implements ApplicationRunner {
 
                 yield subscriptionRepository.findByCanvasId(canvasId)
                         .flatMap(subscription -> {
-                            return webSocketService.sendMessageToConnection(subscription.payload().webSocketConnectionId(), new WebSocketMessage.Text("Hello World!"));
+                            var payload = jsonMapper.writeValueAsString(FileUploadedMessage.builder()
+                                    .fileId(e.getNewValue().getId())
+                                    .fileName(e.getNewValue().getName())
+                                    .contentType(e.getNewValue().getContentType())
+                                    .build());
+
+                            return webSocketService.sendMessageToConnection(subscription.payload().webSocketConnectionId(), new WebSocketMessage.Text(payload))
+                                    .onErrorResume(NoSuchElementException.class, _ -> {
+                                        log.info(
+                                                "WebSocket connection {} not found for subscription {}, deleting subscription",
+                                                kv("webSocketConnectionId", subscription.payload().webSocketConnectionId()),
+                                                kv("subscriptionId", subscription.id())
+                                        );
+
+                                        return subscriptionRepository.deleteByWebSocketConnectionId(subscription.id())
+                                                .as(tx::transactional)
+                                                .then();
+                                    });
                         })
                         .then();
             }
             default -> Mono.empty();
         };
+    }
+
+    @Builder(toBuilder = true)
+    record FileUploadedMessage(Long fileId, String fileName, String contentType) {
     }
 
     private Mono<Void> processWebSocketMessageReceived(WebSocketMessageReceivedEvent e) {
@@ -142,14 +165,30 @@ public class NotificationService implements ApplicationRunner {
         return switch (subscriptionMessage) {
             case SubscriptionMessage.Subscribe(Long canvasId) ->
                     subscriptionRepository.persist(Subscription.Payload.builder()
-                            .canvasId(canvasId)
-                            .webSocketConnectionId(e.getConnection().getId())
-                            .build())
+                                    .canvasId(canvasId)
+                                    .webSocketConnectionId(e.getConnection().getId())
+                                    .build())
                             .as(tx::transactional)
+                            .doOnNext(subscriptionId -> {
+                                log.info(
+                                        "Created subscription {}, {}, {}",
+                                        kv("subscriptionId", subscriptionId),
+                                        kv("canvasId", canvasId),
+                                        kv("webSocketConnectionId", e.getConnection().getId())
+                                );
+                            })
                             .then();
             case SubscriptionMessage.Unsubscribe(Long canvasId) ->
                     subscriptionRepository.deleteByCanvasIdAndWebSocketConnectionId(canvasId, e.getConnection().getId())
-                            .as(tx::transactional);
+                            .then(Mono.fromRunnable(() -> {
+                                log.info(
+                                        "Deleted subscription: {}, {}",
+                                        kv("canvasId", canvasId),
+                                        kv("webSocketConnectionId", e.getConnection().getId())
+                                );
+                            }))
+                            .as(tx::transactional)
+                            .then();
         };
     }
 
