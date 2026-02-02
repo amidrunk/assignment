@@ -9,7 +9,14 @@ import Badge from "@/components/Badge";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Header from "@/components/Header";
-import { Canvas, CanvasFile, fetchCanvases, fetchFiles, uploadFile } from "@/lib/api/canvases";
+import {
+  Canvas,
+  CanvasFile,
+  fetchCanvases,
+  fetchFileData,
+  fetchFiles,
+  uploadFile,
+} from "@/lib/api/canvases";
 import { useWebSocket } from "@/providers/WebSocketProvider";
 
 const formatDateTime = (value?: string) => {
@@ -46,29 +53,55 @@ const kindTone: Record<NonNullable<CanvasFile["kind"]>, { label: string; tone: P
     other: { label: "File", tone: "slate" },
   };
 
-function FileRow({ file }: { file: CanvasFile }) {
+const displayNameForFile = (file: CanvasFile) => file.name ?? file.fileName ?? "Untitled file";
+
+type FileRowProps = {
+  file: CanvasFile;
+  onClick?: () => void;
+  downloading?: boolean;
+};
+
+function FileRow({ file, onClick, downloading }: FileRowProps) {
   const updated = formatDateTime(file.updatedAt);
   const meta = [file.owner, updated].filter(Boolean).join(" • ");
   const size = humanSize(file.size);
   const badge = file.kind ? kindTone[file.kind] : { label: "File", tone: "slate" as const };
-  const displayName = file.name ?? file.fileName ?? "Untitled file";
+  const displayName = displayNameForFile(file);
+  const subline = downloading ? "Preparing download…" : meta || "Synced";
+  const Wrapper: "button" | "div" = onClick ? "button" : "div";
+  const interactiveProps = onClick
+    ? ({
+        type: "button" as const,
+        onClick,
+        "aria-label": `Download ${displayName}`,
+        disabled: downloading,
+      } satisfies Record<string, unknown>)
+    : {};
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 shadow-sm">
+    <Wrapper
+      {...interactiveProps}
+      aria-busy={downloading || undefined}
+      className={`group flex w-full flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/70 ${
+        onClick
+          ? "hover:-translate-y-[1px] hover:border-white/20 hover:bg-white/10 active:translate-y-0"
+          : ""
+      } ${downloading ? "opacity-80" : ""}`}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 text-sm font-semibold text-white">
           {displayName.slice(0, 2).toUpperCase()}
         </div>
         <div className="min-w-0 space-y-1">
           <p className="truncate text-sm font-semibold text-white">{displayName}</p>
-          <p className="truncate text-xs text-slate-200/80">{meta || "Synced"}</p>
+          <p className="truncate text-xs text-slate-200/80">{subline}</p>
         </div>
       </div>
       <div className="flex items-center gap-3 text-sm text-slate-100">
         {size ? <span className="text-xs text-slate-200/80">{size}</span> : null}
         <Badge label={badge.label} tone={badge.tone} />
       </div>
-    </div>
+    </Wrapper>
   );
 }
 
@@ -96,6 +129,7 @@ export default function CanvasDetail() {
   const pendingUnsubscribeRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
   const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<
     { id: string; title: string; description?: string }[]
   >([]);
@@ -227,6 +261,37 @@ export default function CanvasDetail() {
     mutationFn: (file: File) => uploadFile(canvasId, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["canvas-files", canvasId] });
+    },
+  });
+
+  const downloadMutation = useMutation({
+    mutationFn: async (file: CanvasFile) => {
+      const { blob, fileName } = await fetchFileData(file.id);
+      const downloadName = fileName ?? displayNameForFile(file);
+      const url = URL.createObjectURL(blob);
+
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = downloadName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 500);
+      return downloadName;
+    },
+    onMutate: (file) => {
+      setDownloadingId(String(file.id));
+    },
+    onSuccess: (name) => {
+      showToast("Download ready", name);
+    },
+    onError: (error, file) => {
+      const message = (error as Error)?.message || "Unable to download file.";
+      showToast("Download failed", `${displayNameForFile(file)}: ${message}`);
+    },
+    onSettled: () => {
+      setDownloadingId(null);
     },
   });
 
@@ -365,9 +430,17 @@ export default function CanvasDetail() {
 
           {!filesLoading && files.length > 0 ? (
             <div className="space-y-3">
-              {files.map((file) => (
-                <FileRow key={file.id} file={file} />
-              ))}
+              {files.map((file) => {
+                const isDownloading = downloadingId === file.id;
+                return (
+                  <FileRow
+                    key={file.id}
+                    file={file}
+                    downloading={isDownloading}
+                    onClick={() => downloadMutation.mutate(file)}
+                  />
+                );
+              })}
             </div>
           ) : null}
         </Card>

@@ -130,3 +130,38 @@ export const uploadFile = async (canvasId: string, file: File): Promise<CanvasFi
   const data = await parseJsonSafely(response);
   return (data as CanvasFile | null) ?? null;
 };
+
+const extractFileName = (contentDisposition?: string | null): string | null => {
+  if (!contentDisposition) return null;
+
+  const utf8Match = contentDisposition.match(/filename\\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+
+  const fallbackMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+  return fallbackMatch?.[1] ?? null;
+};
+
+export const fetchFileData = async (
+  fileId: string,
+): Promise<{ blob: Blob; fileName: string | null }> => {
+  const response = await fetch(`${API_BASE}/files/${encodeURIComponent(fileId)}/data`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Failed to download file.");
+  }
+
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("content-disposition");
+  const fileName = extractFileName(contentDisposition);
+
+  return { blob, fileName };
+};
