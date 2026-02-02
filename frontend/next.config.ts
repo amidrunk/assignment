@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/encube-assignment-api/v1/:path*',
-        destination: `http://localhost:8080/encube-assignment-api/v1/:path*`,
+        destination: `http://backend:8080/encube-assignment-api/v1/:path*`,
       },
     ]
   },
