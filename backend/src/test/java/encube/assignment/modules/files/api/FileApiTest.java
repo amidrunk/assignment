@@ -135,6 +135,31 @@ class FileApiTest {
                 });
     }
 
+    @Test
+    void file_data_can_be_retrieved_for_uploaded_file() {
+        var fileDescriptor = FileDescriptor.Payload.builder()
+                .fileName("data-file.txt")
+                .contentType("text/plain")
+                .build();
+
+        var uploadResponse = uploadFileThen(fileDescriptor, "File data content")
+                .expectStatus().isCreated()
+                .expectBody(FileDescriptor.class)
+                .returnResult()
+                .getResponseBody();
+
+        assert uploadResponse != null;
+        Long fileId = uploadResponse.id();
+
+        webTestClient.get()
+                .uri("/files/{fileId}/data", fileId)
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentType("text/plain")
+                .expectBody(String.class)
+                .value(content -> assertThat(content).isEqualTo("File data content"));
+    }
+
     private WebTestClient.@NonNull ResponseSpec uploadFileThen(FileDescriptor.Payload fileDescriptor, String content) {
         var createFileRequest = CreateFileRequest.builder()
                 .fileDescriptor(fileDescriptor)
@@ -170,5 +195,4 @@ class FileApiTest {
                 .body(BodyInserters.fromMultipartData(multipartData))
                 .exchange();
     }
-
 }

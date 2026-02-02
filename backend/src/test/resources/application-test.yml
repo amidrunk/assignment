@@ -4,3 +4,7 @@ file:
 debezium:
   provision:
     enabled: false
+
+features:
+  notifications:
+    enabled: false

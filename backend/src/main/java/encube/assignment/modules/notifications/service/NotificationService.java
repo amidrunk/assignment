@@ -18,6 +18,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
@@ -46,6 +47,7 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
  */
 @Service
 @Slf4j
+@ConditionalOnProperty(value = "features.notifications.enabled", havingValue = "true", matchIfMissing = true)
 public class NotificationService implements ApplicationRunner {
 
     private final String kafkaBootstrapServers;

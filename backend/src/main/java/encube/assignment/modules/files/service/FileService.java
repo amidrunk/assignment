@@ -1,6 +1,7 @@
 package encube.assignment.modules.files.service;
 
 import encube.assignment.modules.files.domain.FileDescriptor;
+import encube.assignment.modules.files.error.FileNotFoundException;
 import encube.assignment.modules.files.repository.FileDescriptorRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.Validate;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
 import java.util.List;
@@ -62,5 +64,17 @@ public class FileService {
         Validate.notNull(value, "value must not be null");
 
         return fileDescriptorRepository.findAllByAttribute(name, value);
+    }
+
+    public Mono<Tuple2<FileDescriptor, Flux<DataBuffer>>> getFileData(Long fileId) {
+        Validate.notNull(fileId, "fileId must not be null");
+
+        return fileDescriptorRepository.findById(fileId)
+                .switchIfEmpty(Mono.error(new FileNotFoundException(
+                        "File with ID " + fileId + " not found."
+                )))
+                .map(fileDescriptor -> {
+                   return Tuples.of(fileDescriptor, fileStorage.retrieveFile(fileId));
+                });
     }
 }
